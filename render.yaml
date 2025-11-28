@@ -14,17 +14,13 @@ services:
     healthCheckPath: /
 
     envVars:
-      # ⚠️ ตั้งค่าใน Render Dashboard แทน (ไม่ควร commit secrets)
+      # ⚠️ ตั้งค่าใน Render Dashboard หลัง deploy
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
         sync: false
-      # Optional: frontend URL for CORS
       - key: FRONTEND_URL
-        fromService:
-          name: auctionhub-frontend
-          type: web
-          property: url
+        sync: false
 
   # ===== Frontend (React + Vite + Docker) =====
   - type: web
@@ -37,13 +33,9 @@ services:
     dockerContext: frontend
 
     envVars:
-      # Backend API URL (auto-link from backend service)
+      # ⚠️ ตั้งค่าใน Render Dashboard หลัง backend deploy เสร็จ
       - key: VITE_API_BASE_URL
-        fromService:
-          name: auctionhub-backend
-          type: web
-          property: url
-      # Supabase (frontend ใช้ anon key เท่านั้น)
+        sync: false
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
