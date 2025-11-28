@@ -5,13 +5,21 @@ from datetime import datetime, timedelta
 import traceback
 from fastapi import HTTPException
 from app.Service.db_connection import supabase
+from datetime import datetime, timedelta
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
 
 def get_now() -> datetime:
-    """Return current real time"""
-    return datetime.now().replace(microsecond=0)
+    """
+    Return current real time (Adjusted to Thai Time UTC+7)
+    """
+    # ดึงเวลาปัจจุบันแบบ UTC (เวลาโลก)
+    utc_now = datetime.utcnow()
+    # บวก 7 ชั่วโมงเพื่อให้เป็นเวลาไทย
+    thai_now = utc_now + timedelta(hours=7)
+    # ตัดหน่วยไมโครวินาทีออกเพื่อให้ Format ตรงกับ DB
+    return thai_now.replace(microsecond=0)
 
 
 # ======================================================
@@ -93,15 +101,18 @@ def get_bidding_now():
     now = get_now()
     now_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
+    # Debug: ปริ้นดูเวลา Server ใน Terminal (จะได้รู้ว่าเวลาตรงไหม)
+    print(f"🕒 Server Time (Thai): {now_str}")
+
     # -------------------------------------------------------
     # 🔥 STEP 1: Auto-Promote (Trigger เปลี่ยนสถานะอัตโนมัติ)
     # -------------------------------------------------------
-    # หาสินค้าที่ถึงเวลาเริ่มแล้ว (start_time <= now) แต่สถานะยังเป็น 2 อยู่
+    # หาสินค้าที่ถึงเวลาเริ่มแล้ว (start_time <= now) และสถานะเป็น 2
+    # ❌ เอา .gte("end_time", now_str) ออก เพื่อกันพลาดกรณีเวลาเหลื่อม
     to_promote = (
         supabase.table("product")
-        .select("product_id")
-        .lte("start_time", now_str)   # ถึงเวลาแล้ว
-        .gte("end_time", now_str)     # ยังไม่หมดเวลา
+        .select("product_id, start_time")
+        .lte("start_time", now_str)   # ถึงเวลาเริ่มแล้ว
         .eq("status_id", 2)           # แต่สถานะยังเป็น 2
         .execute()
     )
@@ -109,12 +120,13 @@ def get_bidding_now():
     # ถ้าเจอสินค้าที่ต้องเริ่มประมูล ให้เปลี่ยนสถานะเป็น 8 ทันที
     if to_promote.data:
         for item in to_promote.data:
-            print(f"🔄 Auto-starting bidding for product: {item['product_id']}")
+            print(f"⚡ Promoting Product: {item['product_id']} (Start: {item['start_time']})")
             supabase.table("product").update({"status_id": 8}).eq("product_id", item['product_id']).execute()
 
     # -------------------------------------------------------
     # 🔥 STEP 2: Fetch Active Product (ดึงข้อมูลตามปกติ)
     # -------------------------------------------------------
+    # ขั้นตอนนี้ยังต้องเช็ค end_time เพื่อไม่ให้เอาของที่จบไปแล้วมาโชว์
     res = (
         supabase.table("product")
         .select(
@@ -123,8 +135,8 @@ def get_bidding_now():
         )
         .lte("start_time", now_str)  # เริ่มไปแล้ว
         .gte("end_time", now_str)    # ยังไม่จบ
-        .eq("status_id", 8)          # สถานะต้องเป็น 8 (กำลังประมูล)
-        .order("start_time", desc=False)
+        .eq("status_id", 8)          # สถานะต้องเป็น 8
+        .order("start_time", desc=False) # เอาอันที่เริ่มก่อนมาโชว์
         .limit(1)
         .execute()
     )
@@ -136,10 +148,13 @@ def get_bidding_now():
     time_remaining = None
     if bidding_product and bidding_product.get("end_time"):
         try:
+            # แปลง end_time ใน DB เป็น datetime object
             end_time = datetime.strptime(bidding_product["end_time"], "%Y-%m-%d %H:%M:%S")
+            # หาผลต่าง
             remaining = (end_time - now).total_seconds()
             time_remaining = max(0, int(remaining))
-        except:
+        except Exception as e:
+            print(f"⚠️ Time calc error: {e}")
             pass
 
     return {
