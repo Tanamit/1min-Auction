@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: auctionhub-backend
+    env: docker
+    plan: free
+    branch: main
+
+    # Docker build setup (paths are relative to repo root)
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+
+    envVars:
+      # === COPY THESE FROM docker-compose.yml OR YOUR .env ===
+      - key: SUPABASE_URL
+        value: https://gexoszezmyjkoinbicgv.supabase.co
+      - key: SUPABASE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdleG9zemV6bXlqa29pbmJpY2d2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDQ5Mzk4OSwiZXhwIjoyMDc2MDY5OTg5fQ.2XQRYOcYL3Xml5ThOXMRgrnd9oLarCig90IxJZMpc-k
+
+      # add any other backend env vars you use
+
+  - type: web
+    name: auctionhub-frontend
+    env: docker
+    plan: free
+    branch: main
+
+    dockerfilePath: frontend/Dockerfile
+    dockerContext: frontend
+
+    envVars:
+      # This should point to your backend Render URL after first deploy
+      - key: VITE_API_BASE_URL   # or whatever your frontend uses
+        value: https://auctionhub-backend-u4kg.onrender.com

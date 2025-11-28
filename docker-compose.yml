@@ -1,0 +1,28 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: auctionhub-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Example: Supabase envs
+      SUPABASE_URL: https://gexoszezmyjkoinbicgv.supabase.co
+      SUPABASE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdleG9zemV6bXlqa29pbmJpY2d2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDQ5Mzk4OSwiZXhwIjoyMDc2MDY5OTg5fQ.2XQRYOcYL3Xml5ThOXMRgrnd9oLarCig90IxJZMpc-k
+      # anything else you use in db_connection.py, etc.
+    # If you have a .env file at repo root, docker-compose will load it automatically.
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: auctionhub-frontend
+    ports:
+      - "3000:80"   # host:container (Nginx is on 80)
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE_URL=https://auctionhub-backend-u4kg.onrender.com
+
+
