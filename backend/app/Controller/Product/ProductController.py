@@ -65,7 +65,7 @@ def get_upcoming_products(limit: int = 60):
     for i, prod in enumerate(products):
         virtual_time = VIRTUAL_START + timedelta(minutes=i)
         virtual_items.append({
-            "virtual_start": virtual_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "virtual_start": prod.get("start_time"),
             "real_product_id": prod.get("product_id"),
             "product_name": prod.get("product_name"),
             "product_desc": prod.get("product_desc"),
