@@ -50,7 +50,7 @@ export default function ComingUp() {
       setCountdown(t => {
         if (t <= 1) {
           loadUpcoming(selectedCat);
-          return 60; // Reset to 60 seconds
+          return 60;
         }
         return t - 1;
       });
@@ -75,9 +75,16 @@ export default function ComingUp() {
       const url = `${API_BASE_URL}/products/upcoming?limit=60${catId != null ? `&product_cat_id=${catId}` : ""}`;
       const res = await fetch(url);
       const json = await res.json();
-      setItems(json.items || []);
       
-      // คำนวณ countdown จากเวลาจริง
+      // เรียงตาม start_time (ใกล้ถึงเวลาประมูลก่อน)
+      const sortedItems = (json.items || []).sort((a, b) => {
+        const timeA = new Date(a.start_time?.replace(" ", "T") || 0);
+        const timeB = new Date(b.start_time?.replace(" ", "T") || 0);
+        return timeA - timeB;
+      });
+      
+      setItems(sortedItems);
+      
       if (json.current_time) {
         setCountdown(secondsToNextMinute(json.current_time));
       } else {
@@ -100,15 +107,62 @@ export default function ComingUp() {
   }
 
   // ----------------------------------------------
-  // Format time for display
+  // Format time for display (เวลาไทย)
   // ----------------------------------------------
   function formatTime(timeStr) {
     if (!timeStr) return "--:--";
     try {
       const d = new Date(timeStr.replace(" ", "T"));
-      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return d.toLocaleTimeString("th-TH", { 
+        hour: "2-digit", 
+        minute: "2-digit",
+        hour12: false 
+      });
     } catch {
       return timeStr.slice(11, 16);
+    }
+  }
+
+  // ----------------------------------------------
+  // Format date and time (เวลาไทย)
+  // ----------------------------------------------
+  function formatDateTime(timeStr) {
+    if (!timeStr) return "--";
+    try {
+      const d = new Date(timeStr.replace(" ", "T"));
+      return d.toLocaleString("th-TH", { 
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit", 
+        minute: "2-digit",
+        hour12: false 
+      });
+    } catch {
+      return timeStr;
+    }
+  }
+
+  // ----------------------------------------------
+  // Calculate time until auction starts
+  // ----------------------------------------------
+  function getTimeUntilStart(timeStr) {
+    if (!timeStr) return null;
+    try {
+      const start = new Date(timeStr.replace(" ", "T"));
+      const now = new Date();
+      const diff = start - now;
+      
+      if (diff <= 0) return "กำลังประมูล";
+      
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      
+      if (days > 0) return `อีก ${days} วัน ${hours} ชม.`;
+      if (hours > 0) return `อีก ${hours} ชม. ${minutes} นาที`;
+      return `อีก ${minutes} นาที`;
+    } catch {
+      return null;
     }
   }
 
@@ -203,16 +257,22 @@ export default function ComingUp() {
       <div className="flex gap-5 overflow-x-auto pb-4">
         {visible.map(prod => {
           const imgSrc = decodeImage(prod.product_img) || PLACEHOLDER;
+          const timeUntil = getTimeUntilStart(prod.start_time);
           return (
             <div key={prod.product_id} onClick={() => goDetail(prod)}
               className="min-w-[240px] bg-white rounded-xl shadow hover:shadow-lg transition cursor-pointer overflow-hidden">
-              <div className="h-40 overflow-hidden">
+              <div className="h-40 overflow-hidden relative">
                 <img src={imgSrc} alt={prod.product_name}
                   className="w-full h-full object-cover hover:scale-105 transition" />
+                {timeUntil && (
+                  <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                    {timeUntil}
+                  </div>
+                )}
               </div>
               <div className="p-3">
                 <p className="font-semibold text-sm mb-1 line-clamp-1">{prod.product_name}</p>
-                <p className="text-xs text-gray-500">Starts at: {formatTime(prod.start_time)}</p>
+                <p className="text-xs text-gray-500">เริ่มประมูล: {formatTime(prod.start_time)} น.</p>
                 <p className="mt-1 text-red-600 text-sm font-bold">฿{Number(prod.start_price).toLocaleString()}</p>
               </div>
             </div>
@@ -242,17 +302,23 @@ export default function ComingUp() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {filtered.map(prod => {
                 const imgSrc = decodeImage(prod.product_img) || PLACEHOLDER;
+                const timeUntil = getTimeUntilStart(prod.start_time);
                 return (
                   <div key={prod.product_id}
                        onClick={() => { goDetail(prod); setShowAll(false); }}
                        className="bg-white rounded-lg shadow hover:shadow-lg transition cursor-pointer overflow-hidden">
-                    <div className="h-32 overflow-hidden">
+                    <div className="h-32 overflow-hidden relative">
                       <img src={imgSrc} alt={prod.product_name}
                            className="w-full h-full object-cover hover:scale-105 transition" />
+                      {timeUntil && (
+                        <div className="absolute top-1 right-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">
+                          {timeUntil}
+                        </div>
+                      )}
                     </div>
                     <div className="p-3">
                       <p className="font-semibold text-xs mb-1 line-clamp-1">{prod.product_name}</p>
-                      <p className="text-[11px] text-gray-500">{formatTime(prod.start_time)}</p>
+                      <p className="text-[11px] text-gray-500">{formatDateTime(prod.start_time)}</p>
                       <p className="mt-1 text-red-600 text-xs font-bold">฿{Number(prod.start_price).toLocaleString()}</p>
                     </div>
                   </div>
