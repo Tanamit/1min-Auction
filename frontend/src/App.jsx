@@ -6,7 +6,7 @@ import Footer from './components/common/Footer';
 
 import Home from './components/pages/Home';
 import Contact from './components/pages/Contact';
-import About from './components/pages/About';
+// import About from './components/pages/About';
 import SignUp from './components/pages/SignUp';
 import Login from './components/pages/Login';
 import Payment from './components/pages/Payment';
@@ -39,7 +39,7 @@ export default function App() {
             {/* MAIN PAGES */}
             <Route path="/" element={<Home />} />
             <Route path="/contact" element={<Contact />} />
-            <Route path="/about" element={<About />} />
+            {/* <Route path="/about" element={<About />} /> */}
 
             {/* AUTH */}
             <Route path="/signup" element={<SignUp />} />
