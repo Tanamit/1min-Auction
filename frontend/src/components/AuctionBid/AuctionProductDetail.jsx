@@ -3,11 +3,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { API_BASE_URL } from "../../config/api";
 
-
 const MIN_INCREMENT = 500;
-
-// 🕒 Adjust your fixed virtual start here
-const VIRTUAL_BASE = new Date("2025-10-21T03:00:00");
 
 // Helper: compute remaining time
 function computeRemainingTime(targetTime, currentTime = new Date()) {
@@ -24,6 +20,38 @@ function computeRemainingTime(targetTime, currentTime = new Date()) {
   return { days, hours, minutes, seconds, ended: false };
 }
 
+// Helper: decode image from hex or base64
+function decodeImage(raw) {
+  if (!raw) return null;
+  
+  // ถ้าเป็น data URL หรือ http URL แล้ว
+  if (raw.startsWith("data:") || raw.startsWith("http")) {
+    return raw;
+  }
+  
+  // ถ้าเป็น base64 ของรูปจริง (JPEG/PNG/GIF/WEBP)
+  if (raw.startsWith("/9j/") || raw.startsWith("iVBOR") || 
+      raw.startsWith("R0lG") || raw.startsWith("UklG")) {
+    return `data:image/jpeg;base64,${raw}`;
+  }
+  
+  // ถ้าเป็น hex string จาก Postgres bytea
+  try {
+    let h = raw;
+    if (h.startsWith("\\x")) h = h.slice(2);
+    else if (h.startsWith("\\\\x")) h = h.slice(3);
+    
+    if (/^[0-9a-fA-F]+$/.test(h)) {
+      const bytes = new Uint8Array(h.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+      return URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
+    }
+  } catch (e) {
+    console.error("Error decoding image:", e);
+  }
+  
+  return null;
+}
+
 export default function AuctionProductDetail() {
   const { productId } = useParams();
   const location = useLocation();
@@ -35,8 +63,8 @@ export default function AuctionProductDetail() {
     name: raw.product_name || raw.name || "Unnamed Product",
     description: raw.product_desc || raw.description || "No description available.",
     startPrice: raw.start_price || raw.startPrice || 0,
-    virtual_start: raw.virtual_start || raw.start_time || null,
-    virtual_end: raw.virtual_end || raw.end_time || null,
+    start_time: raw.start_time || null,
+    end_time: raw.end_time || null,
     listedBy: raw.seller_id || raw.listedBy || "Unknown",
     product_img: raw.product_img || null,
   };
@@ -66,22 +94,31 @@ export default function AuctionProductDetail() {
     loadHighest();
   }, [productId]);
 
-  // ✅ Virtual Clock + Phase Detection
+  // ✅ Real Clock + Phase Detection
   useEffect(() => {
     const timer = setInterval(() => {
-      const realNow = new Date();
-      const minutesSinceMidnight = realNow.getHours() * 60 + realNow.getMinutes();
-      const virtualNow = new Date(VIRTUAL_BASE.getTime() + minutesSinceMidnight * 60 * 1000);
+      const now = new Date();
 
-      const start = new Date(productData.virtual_start);
-      const end = new Date(productData.virtual_end);
+      // Parse start_time และ end_time
+      const start = productData.start_time 
+        ? new Date(productData.start_time.replace(" ", "T")) 
+        : null;
+      const end = productData.end_time 
+        ? new Date(productData.end_time.replace(" ", "T")) 
+        : null;
 
-      if (virtualNow < start) {
+      if (!start || !end) {
         setPhase("waiting");
-        setTimeRemaining(computeRemainingTime(start, virtualNow));
-      } else if (virtualNow >= start && virtualNow < end) {
+        setTimeRemaining({ days: 0, hours: 0, minutes: 0, seconds: 0, ended: false });
+        return;
+      }
+
+      if (now < start) {
+        setPhase("waiting");
+        setTimeRemaining(computeRemainingTime(start, now));
+      } else if (now >= start && now < end) {
         setPhase("active");
-        setTimeRemaining(computeRemainingTime(end, virtualNow));
+        setTimeRemaining(computeRemainingTime(end, now));
       } else {
         setPhase("ended");
         setTimeRemaining({ days: 0, hours: 0, minutes: 0, seconds: 0, ended: true });
@@ -89,7 +126,7 @@ export default function AuctionProductDetail() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [productData.virtual_start, productData.virtual_end]);
+  }, [productData.start_time, productData.end_time]);
 
   const formatTime = (t) => String(t ?? 0).padStart(2, "0");
 
@@ -140,13 +177,9 @@ export default function AuctionProductDetail() {
     }
   };
 
-  const imgSrc =
-    productData.product_img?.startsWith("data:") ||
-    productData.product_img?.startsWith("http")
-      ? productData.product_img
-      : productData.product_img
-      ? 'data:image/jpeg;base64,${productData.product_img}'
-      : `https://picsum.photos/seed/${productData.id}/400`;
+  // ✅ Decode image
+  const imgSrc = decodeImage(productData.product_img) 
+    || `https://picsum.photos/seed/${productData.id}/400`;
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm">
@@ -157,7 +190,15 @@ export default function AuctionProductDetail() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         {/* LEFT */}
         <div className="border rounded-xl p-6 bg-gray-50 flex items-center justify-center">
-          <img src={imgSrc} alt={productData.name} className="max-w-full max-h-80 object-cover rounded-lg" />
+          <img 
+            src={imgSrc} 
+            alt={productData.name} 
+            className="max-w-full max-h-80 object-cover rounded-lg"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = `https://picsum.photos/seed/${productData.id}/400`;
+            }}
+          />
         </div>
 
         {/* RIGHT */}
