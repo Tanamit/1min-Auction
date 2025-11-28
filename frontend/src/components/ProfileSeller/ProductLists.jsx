@@ -17,8 +17,8 @@ const mimeFromBytes = (u8) => {
 };
 
 const hexToU8 = (hex) => {
-    // ลบ \\x ทั้งหมด (ไม่ใช่แค่ตัวแรก)
-    const clean = hex.replace(/\\x/gi, "").replace(/^0x/i, "");
+    // ลบ prefix ทุกแบบ: \\x, \x, 0x
+    const clean = hex.replace(/(\\\\x|\\x|0x)/gi, "");
     const bytes = new Uint8Array(clean.length / 2);
     for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(clean.substr(i * 2, 2), 16);
     return bytes;
@@ -38,11 +38,10 @@ const base64MimeHint = (b64) => {
 const toThumbSrc = (raw, trackUrl) => {
     if (!raw || typeof raw !== "string") return null;
 
-    // already data URL
     if (raw.startsWith("data:")) return raw;
 
-    // hex from PostgREST bytea (e.g., "\\x89504e47...")
-    if (raw.startsWith("\\x") || raw.startsWith("0x")) {
+    // เช็ค hex ทุกแบบ
+    if (/^(\\\\x|\\x|0x)/i.test(raw)) {
         const u8 = hexToU8(raw);
         const mime = mimeFromBytes(u8);
         const url = URL.createObjectURL(new Blob([u8], { type: mime }));
@@ -50,7 +49,6 @@ const toThumbSrc = (raw, trackUrl) => {
         return url;
     }
 
-    // assume plain base64
     const mime = base64MimeHint(raw);
     return `data:${mime};base64,${raw}`;
 };
