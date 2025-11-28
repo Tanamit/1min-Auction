@@ -75,7 +75,7 @@ def get_all_bids(product_id: str):
 # ======================================================
 # GET HIGHEST BID
 # ======================================================
-@router.get("/product/{product_id}/highest")
+@router.get("/{product_id}/highest")
 def get_highest_bid(product_id: str):
     highest = BiddingModel.get_highest_bid(product_id)
     start_price = BiddingModel.get_product_start_price(product_id)
