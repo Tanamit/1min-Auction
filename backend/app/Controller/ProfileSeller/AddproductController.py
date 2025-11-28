@@ -12,18 +12,18 @@ PRODUCT_TABLE = "product"
 
 def _normalize_to_timestamp_no_tz(iso_str: str) -> str:
     """
-    Convert e.g. '2025-10-21T03:31:00+07:00' -> '2025-10-20 20:31:00'
-    (UTC naive string) to match a Postgres `timestamp` (no tz) column.
+    Convert e.g. '2025-10-21T03:31:00+07:00' -> '2025-10-21 03:31:00'
+    เก็บเวลา local time โดยไม่แปลงเป็น UTC
     """
     try:
         dt = datetime.fromisoformat(iso_str)
     except Exception:
         raise HTTPException(400, detail="Invalid start_time format (must be ISO 8601)")
 
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    utc_naive = dt.astimezone(timezone.utc).replace(tzinfo=None)
-    return utc_naive.strftime("%Y-%m-%d %H:%M:%S")
+    # เก็บเวลา local time โดยไม่แปลง timezone
+    # ลบ timezone info ออกแล้วเก็บเวลาตามที่ user เลือก
+    naive = dt.replace(tzinfo=None)
+    return naive.strftime("%Y-%m-%d %H:%M:%S")
 
 
 @router.get("/categories")
