@@ -352,9 +352,9 @@ export default function AuctionProductDetail() {
           <h1 className="text-3xl font-bold mb-2">{productData.name}</h1>
           <p className="text-sm text-gray-500 mb-1">Bidding ID: {productData.id}</p>
           <p className="text-xs text-gray-400 mb-3">
-            {phase === "waiting" && `เริ่มประมูล: ${formatDateTime(productData.start_time)}`}
-            {phase === "active" && `สิ้นสุด: ${formatDateTime(productData.end_time)}`}
-            {phase === "ended" && `สิ้นสุดแล้ว: ${formatDateTime(productData.end_time)}`}
+            {phase === "waiting" && `Starts: ${formatDateTime(productData.start_time)}`}
+            {phase === "active" && `Ends: ${formatDateTime(productData.end_time)}`}
+            {phase === "ended" && `Ended: ${formatDateTime(productData.end_time)}`}
           </p>
 
           <div className="mb-4">
@@ -369,13 +369,13 @@ export default function AuctionProductDetail() {
 
           <div className="mb-2 text-sm">
             {phase === "waiting" && (
-              <p className="text-yellow-600">⏳ รอเริ่มประมูล</p>
+              <p className="text-yellow-600">⏳ Waiting to start</p>
             )}
             {phase === "active" && (
-              <p className="text-green-600 font-semibold">🔥 กำลังประมูล!</p>
+              <p className="text-green-600 font-semibold">🔥 Bidding Active!!</p>
             )}
             {phase === "ended" && (
-              <p className="text-red-500">🏁 การประมูลสิ้นสุดแล้ว</p>
+              <p className="text-red-500">🏁 Auction Ended</p>
             )}
           </div>
 
@@ -392,9 +392,9 @@ export default function AuctionProductDetail() {
             ))}
           </div>
           <p className="text-xs text-gray-500 mb-4">
-            {phase === "waiting" && "เวลาที่เหลือก่อนเริ่มประมูล"}
-            {phase === "active" && "เวลาที่เหลือในการประมูล"}
-            {phase === "ended" && "การประมูลสิ้นสุดแล้ว"}
+            {phase === "waiting" && "Time until auction starts"}
+            {phase === "active" && "Time remaining"}
+            {phase === "ended" && "Auction has ended"}
           </p>
 
           {/* Bid Box */}
@@ -409,7 +409,7 @@ export default function AuctionProductDetail() {
                 className="w-full p-3 border-2 border-green-500 rounded-md text-lg font-semibold"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Minimum next bid: ฿{nextMin.toLocaleString()} (เพิ่มทีละ ฿{MIN_INCREMENT.toLocaleString()})
+                Minimum next bid: ฿{nextMin.toLocaleString()} (Increment ฿{MIN_INCREMENT.toLocaleString()})
               </p>
               <button
                 onClick={handleBidSubmit}
@@ -420,13 +420,13 @@ export default function AuctionProductDetail() {
             </>
           ) : phase === "waiting" ? (
             <div className="text-center text-yellow-600 mt-4 border border-yellow-300 bg-yellow-50 p-4 rounded-md">
-              <p className="font-semibold">⏳ รอเริ่มประมูล</p>
-              <p className="text-sm text-gray-500 mt-1">กรุณารอจนกว่าจะถึงเวลาเริ่มประมูล</p>
+              <p className="font-semibold">⏳ Auction Ended</p>
+              <p className="text-sm text-gray-500 mt-1">Please wait until the auction start time.</p>
             </div>
           ) : (
             <div className="text-center text-gray-500 mt-4 border border-gray-200 bg-gray-50 p-4 rounded-md">
-              <p className="font-semibold">🏁 การประมูลสิ้นสุดแล้ว</p>
-              <p className="text-sm mt-1">ราคาสุดท้าย: ฿{currentBid.toLocaleString()}</p>
+              <p className="font-semibold">🏁 Auction Ended</p>
+              <p className="text-sm mt-1">Final Price: ฿{currentBid.toLocaleString()}</p>
             </div>
           )}
         </div>
