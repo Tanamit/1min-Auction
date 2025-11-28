@@ -79,23 +79,49 @@ def get_upcoming_products(limit: int = 60):
 # ======================================================
 # ✅ CURRENTLY BIDDING PRODUCT
 # ======================================================
+# backend/app/Controller/ProductController.py
+
 @router.get("/bidding-now")
 def get_bidding_now():
     """
-    Get products currently in bidding (between start_time and end_time).
+    1. Check if any upcoming product (status=2) has reached start_time.
+    2. If yes, update status to 8 (Bidding).
+    3. Return the current bidding product.
     """
     now = get_now()
     now_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
+    # -------------------------------------------------------
+    # 🔥 STEP 1: Auto-Promote (Trigger เปลี่ยนสถานะอัตโนมัติ)
+    # -------------------------------------------------------
+    # หาสินค้าที่ถึงเวลาเริ่มแล้ว (start_time <= now) แต่สถานะยังเป็น 2 อยู่
+    to_promote = (
+        supabase.table("product")
+        .select("product_id")
+        .lte("start_time", now_str)   # ถึงเวลาแล้ว
+        .gte("end_time", now_str)     # ยังไม่หมดเวลา
+        .eq("status_id", 2)           # แต่สถานะยังเป็น 2
+        .execute()
+    )
+    
+    # ถ้าเจอสินค้าที่ต้องเริ่มประมูล ให้เปลี่ยนสถานะเป็น 8 ทันที
+    if to_promote.data:
+        for item in to_promote.data:
+            print(f"🔄 Auto-starting bidding for product: {item['product_id']}")
+            supabase.table("product").update({"status_id": 8}).eq("product_id", item['product_id']).execute()
+
+    # -------------------------------------------------------
+    # 🔥 STEP 2: Fetch Active Product (ดึงข้อมูลตามปกติ)
+    # -------------------------------------------------------
     res = (
         supabase.table("product")
         .select(
             "product_id, product_name, product_desc, product_img, "
             "start_price, seller_id, start_time, end_time, status_id"
         )
-        .lte("start_time", now_str)  # start_time <= now
-        .gte("end_time", now_str)    # end_time >= now
-        .in_("status_id", [2, 8])    # Verified or Bidding
+        .lte("start_time", now_str)  # เริ่มไปแล้ว
+        .gte("end_time", now_str)    # ยังไม่จบ
+        .eq("status_id", 8)          # สถานะต้องเป็น 8 (กำลังประมูล)
         .order("start_time", desc=False)
         .limit(1)
         .execute()
@@ -104,7 +130,7 @@ def get_bidding_now():
     data = res.data or []
     bidding_product = data[0] if data else None
     
-    # Calculate time remaining if there's a product
+    # คำนวณเวลาที่เหลือ
     time_remaining = None
     if bidding_product and bidding_product.get("end_time"):
         try:
