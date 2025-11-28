@@ -17,7 +17,8 @@ const mimeFromBytes = (u8) => {
 };
 
 const hexToU8 = (hex) => {
-    const clean = hex.replace(/^\\x/i, "").replace(/^0x/i, "");
+    // ลบ \\x ทั้งหมด (ไม่ใช่แค่ตัวแรก)
+    const clean = hex.replace(/\\x/gi, "").replace(/^0x/i, "");
     const bytes = new Uint8Array(clean.length / 2);
     for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(clean.substr(i * 2, 2), 16);
     return bytes;
