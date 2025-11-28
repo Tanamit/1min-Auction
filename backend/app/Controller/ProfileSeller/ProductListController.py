@@ -6,6 +6,30 @@ router = APIRouter(prefix="/api/seller", tags=["Seller Product List"])
 
 PRODUCT_TABLE = "product"
 
+
+def _hex_to_base64(hex_str: str) -> str | None:
+    """แปลง hex string จาก Supabase bytea เป็น base64 สำหรับ frontend"""
+    if not hex_str or not isinstance(hex_str, str):
+        return None
+    
+    try:
+        # ลบ prefix \\x หรือ \x
+        clean = hex_str
+        if clean.startswith("\\\\x"):
+            clean = clean[3:]
+        elif clean.startswith("\\x"):
+            clean = clean[2:]
+        elif clean.startswith("0x"):
+            clean = clean[2:]
+        
+        # แปลง hex เป็น bytes แล้วเป็น base64
+        img_bytes = bytes.fromhex(clean)
+        return base64.b64encode(img_bytes).decode("utf-8")
+    except Exception as e:
+        print(f"Error converting hex to base64: {e}")
+        return None
+
+
 @router.get("/products")
 def list_products(
     user_id: str = Header(..., alias="X-User-Id"),
@@ -36,17 +60,12 @@ def list_products(
     if getattr(res, "error", None):
         raise HTTPException(500, detail=str(res.error))
 
-    # แปลง product_img เป็น base64
+    # แปลง product_img จาก hex เป็น base64
     items = []
     for item in (res.data or []):
-        if item.get("product_img"):
-            # ถ้าเป็น hex string ให้แปลงเป็น base64
-            img = item["product_img"]
-            if isinstance(img, str) and img.startswith("\\x"):
-                # แปลง hex เป็น bytes แล้วเป็น base64
-                hex_str = img[2:]  # ลบ \x
-                img_bytes = bytes.fromhex(hex_str)
-                item["product_img"] = base64.b64encode(img_bytes).decode("utf-8")
+        img = item.get("product_img")
+        if img:
+            item["product_img"] = _hex_to_base64(img)
         items.append(item)
 
     return {"items": items, "total": res.count or 0}
