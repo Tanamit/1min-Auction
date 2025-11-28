@@ -26,7 +26,7 @@ from app.Controller.Passwordmanagement.ForgetPasswordController import router as
 from app.Controller.Passwordmanagement.ResetPasswordController import router as reset_password_router
 from app.Controller.Payment.PaymentController import router as payment_router
 
-
+from app.Controller.Bidding.BiddingController import router as bidding_router
 
 app = FastAPI()
 
@@ -77,6 +77,8 @@ app.include_router(seller_product_list_router)
 
 # Public Products
 app.include_router(product_router)
+
+app.include_router(bidding_router)
 
 # Buyer APIs
 app.include_router(buyer_profile_router)
