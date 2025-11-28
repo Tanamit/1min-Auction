@@ -2,6 +2,8 @@
 
 from fastapi import APIRouter
 from datetime import datetime, timedelta
+import traceback
+from fastapi import HTTPException
 from app.Service.db_connection import supabase
 
 router = APIRouter(prefix="/products", tags=["Products"])
@@ -171,79 +173,102 @@ def get_current_time():
 @router.post("/finalize/{product_id}")
 def finalize_auction(product_id: str):
     """
-    Finalize auction when time ends:
-    1. Find highest bid
-    2. Set winner_id and final_price
-    3. Update status to 4 (completed)
+    Finalize auction safely.
+    Handles potential errors and checks for correct column names.
     """
-    # 1. ดึงข้อมูล product
-    prod_res = (
-        supabase.table("product")
-        .select("*")
-        .eq("product_id", product_id)
-        .single()
-        .execute()
-    )
-    
-    if not prod_res.data:
-        return {"message": "Product not found", "product_id": product_id}
-    
-    product = prod_res.data
-    
-    # ถ้า status เป็น 4 แล้ว (จบไปแล้ว) ไม่ต้องทำอะไร
-    if product.get("status_id") == 4:
-        return {
-            "message": "Auction already finalized",
-            "product_id": product_id,
-            "winner_id": product.get("winner_id"),
-            "final_price": product.get("final_price")
-        }
-    
-    # 2. หา bid สูงสุด
-    bid_res = (
-        supabase.table("bid")
-        .select("*")
-        .eq("product_id", product_id)
-        .order("bid_amount", desc=True)
-        .limit(1)
-        .execute()
-    )
-    
-    bids = bid_res.data or []
-    
-    if bids:
-        # มีคนประมูล - หาผู้ชนะ
-        highest_bid = bids[0]
-        winner_id = highest_bid.get("user_id")
-        final_price = highest_bid.get("bid_amount")
+    try:
+        print(f"🏁 [Finalize] Processing product: {product_id}")
+
+        # 1. ดึงข้อมูล product (ใช้ limit(1) แทน single เพื่อกัน Error 500)
+        prod_res = (
+            supabase.table("product")
+            .select("*")
+            .eq("product_id", product_id)
+            .limit(1)
+            .execute()
+        )
         
-        # 3. อัพเดท product
-        supabase.table("product").update({
-            "status_id": 4,
-            "winner_id": winner_id,
-            "final_price": final_price
-        }).eq("product_id", product_id).execute()
+        # เช็คว่าเจอสินค้าไหม
+        if not prod_res.data:
+            print(f"❌ Product {product_id} not found")
+            return {"message": "Product not found", "product_id": product_id}
         
-        return {
-            "message": "Auction finalized with winner",
-            "product_id": product_id,
-            "winner_id": winner_id,
-            "final_price": final_price
-        }
-    else:
-        # ไม่มีคนประมูล - จบโดยไม่มีผู้ชนะ
-        supabase.table("product").update({
-            "status_id": 4,
-            "winner_id": None,
-            "final_price": None
-        }).eq("product_id", product_id).execute()
+        product = prod_res.data[0]
         
-        return {
-            "message": "Auction finalized with no winner",
-            "product_id": product_id,
-            "winner_id": None,
-            "final_price": None
-        }
+        # ถ้า status เป็น 4 แล้ว (จบไปแล้ว) ไม่ต้องทำอะไร
+        if product.get("status_id") == 4:
+            print(f"⚠️ Product {product_id} is already finalized.")
+            return {
+                "message": "Auction already finalized",
+                "product_id": product_id,
+                "winner_id": product.get("winner_id"),
+                "final_price": product.get("final_price")
+            }
+        
+        # 2. หา bid สูงสุด
+        bid_res = (
+            supabase.table("bid")
+            .select("*")
+            .eq("product_id", product_id)
+            .order("bid_amount", desc=True)
+            .limit(1)
+            .execute()
+        )
+        
+        bids = bid_res.data or []
+        
+        if bids:
+            # --- มีคนประมูล ---
+            highest_bid = bids[0]
+            print(f"💰 Highest bid found: {highest_bid}")
+
+            # 🔥 จุดสำคัญ: เช็คทั้ง user_id หรือ bidder_id (เผื่อชื่อคอลัมน์ไม่ตรง)
+            winner_id = highest_bid.get("user_id") or highest_bid.get("bidder_id")
+            final_price = highest_bid.get("bid_amount")
+
+            if not winner_id:
+                # ถ้าหา ID ไม่เจอ แสดงว่า Column ใน DB ชื่อไม่ตรงกับ code
+                print("❌ Error: Bid found but could not identify user_id/bidder_id column.")
+                raise HTTPException(status_code=500, detail="Database column mismatch for bidder ID")
+
+            # 3. อัพเดท product (Set Winner)
+            supabase.table("product").update({
+                "status_id": 4,
+                "winner_id": winner_id,
+                "final_price": final_price
+            }).eq("product_id", product_id).execute()
+            
+            print(f"✅ Auction Won by {winner_id} at {final_price}")
+            
+            return {
+                "message": "Auction finalized with winner",
+                "product_id": product_id,
+                "winner_id": winner_id,
+                "final_price": final_price
+            }
+        else:
+            # --- ไม่มีคนประมูล ---
+            print("tel: No bids found. Closing auction.")
+            
+            supabase.table("product").update({
+                "status_id": 4,
+                "winner_id": None,
+                "final_price": product.get("start_price") # หรือ None แล้วแต่ Logic
+            }).eq("product_id", product_id).execute()
+            
+            return {
+                "message": "Auction finalized with no winner",
+                "product_id": product_id,
+                "winner_id": None,
+                "final_price": None
+            }
+
+    except Exception as e:
+        # 🔥 ปริ้น Error ยาวๆ ออกมาดูใน Terminal ถ้ามันพัง
+        print("🔥 CRITICAL ERROR in finalize_auction 🔥")
+        print(traceback.format_exc()) 
+        # ส่ง 500 กลับไปพร้อมข้อความ Error
+        raise HTTPException(status_code=500, detail=f"Server Error: {str(e)}")
 
 
 # ======================================================
