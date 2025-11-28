@@ -140,6 +140,87 @@ def get_current_time():
 
 
 # ======================================================
+# ✅ FINALIZE AUCTION - หาผู้ชนะเมื่อหมดเวลา
+# ======================================================
+@router.post("/finalize/{product_id}")
+def finalize_auction(product_id: str):
+    """
+    Finalize auction when time ends:
+    1. Find highest bid
+    2. Set winner_id and final_price
+    3. Update status to 4 (completed)
+    """
+    # 1. ดึงข้อมูล product
+    prod_res = (
+        supabase.table("product")
+        .select("*")
+        .eq("product_id", product_id)
+        .single()
+        .execute()
+    )
+    
+    if not prod_res.data:
+        return {"message": "Product not found", "product_id": product_id}
+    
+    product = prod_res.data
+    
+    # ถ้า status เป็น 4 แล้ว (จบไปแล้ว) ไม่ต้องทำอะไร
+    if product.get("status_id") == 4:
+        return {
+            "message": "Auction already finalized",
+            "product_id": product_id,
+            "winner_id": product.get("winner_id"),
+            "final_price": product.get("final_price")
+        }
+    
+    # 2. หา bid สูงสุด
+    bid_res = (
+        supabase.table("bid")
+        .select("*")
+        .eq("product_id", product_id)
+        .order("bid_amount", desc=True)
+        .limit(1)
+        .execute()
+    )
+    
+    bids = bid_res.data or []
+    
+    if bids:
+        # มีคนประมูล - หาผู้ชนะ
+        highest_bid = bids[0]
+        winner_id = highest_bid.get("user_id")
+        final_price = highest_bid.get("bid_amount")
+        
+        # 3. อัพเดท product
+        supabase.table("product").update({
+            "status_id": 4,
+            "winner_id": winner_id,
+            "final_price": final_price
+        }).eq("product_id", product_id).execute()
+        
+        return {
+            "message": "Auction finalized with winner",
+            "product_id": product_id,
+            "winner_id": winner_id,
+            "final_price": final_price
+        }
+    else:
+        # ไม่มีคนประมูล - จบโดยไม่มีผู้ชนะ
+        supabase.table("product").update({
+            "status_id": 4,
+            "winner_id": None,
+            "final_price": None
+        }).eq("product_id", product_id).execute()
+        
+        return {
+            "message": "Auction finalized with no winner",
+            "product_id": product_id,
+            "winner_id": None,
+            "final_price": None
+        }
+
+
+# ======================================================
 # ✅ NEXT REFRESH ENDPOINT
 # ======================================================
 @router.get("/time/next-refresh")

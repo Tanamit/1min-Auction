@@ -1,3 +1,4 @@
+// frontend/src/components/pages/Payment.jsx
 import { useParams, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
