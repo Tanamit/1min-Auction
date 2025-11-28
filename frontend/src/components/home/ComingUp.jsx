@@ -6,15 +6,25 @@ const PLACEHOLDER = "https://via.placeholder.com/300x200?text=No+Image";
 
 // ----------------------------------------------------
 // Decode Postgres bytea hex -> object URL (JPEG)
-// Supports prefixes: \x....  or  \\xffd8...
+// หรือถ้าเป็น base64 ก็แสดงได้เลย
 // ----------------------------------------------------
-function decodeImage(hex) {
+function decodeImage(raw) {
   try {
-    if (!hex) return null;
-    let h = hex;
+    if (!raw) return null;
+    
+    // ถ้าเป็น base64 ของรูปจริง (JPEG/PNG/GIF/WEBP)
+    if (raw.startsWith("/9j/") || raw.startsWith("iVBOR") || 
+        raw.startsWith("R0lG") || raw.startsWith("UklG")) {
+      return `data:image/jpeg;base64,${raw}`;
+    }
+    
+    // ถ้าเป็น hex string จาก Postgres bytea
+    let h = raw;
     if (h.startsWith("\\x")) h = h.slice(2);
-    else if (h.startsWith("\\xff")) h = h.slice(2); // drop leading escaped ff
+    else if (h.startsWith("\\\\x")) h = h.slice(3);
+    
     if (!/^[0-9a-fA-F]+$/.test(h)) return null;
+    
     const bytes = new Uint8Array(h.match(/.{1,2}/g).map(b => parseInt(b, 16)));
     return URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
   } catch {
@@ -29,15 +39,21 @@ export default function ComingUp() {
   const [slideIndex, setSlideIndex] = useState(0);
   const [itemsPerRow, setItemsPerRow] = useState(5);
   const [showAll, setShowAll] = useState(false);
-  const [selectedCat, setSelectedCat] = useState(null); // NEW
+  const [selectedCat, setSelectedCat] = useState(null);
 
   // ----------------------------------------------
-  // Initial load + hourly auto refresh
+  // Initial load + auto refresh every minute
   // ----------------------------------------------
   useEffect(() => {
-    loadUpcoming(); // initial
+    loadUpcoming();
     const timer = setInterval(() => {
-      setCountdown(t => (t <= 1 ? (loadUpcoming(selectedCat), t) : t - 1));
+      setCountdown(t => {
+        if (t <= 1) {
+          loadUpcoming(selectedCat);
+          return 60; // Reset to 60 seconds
+        }
+        return t - 1;
+      });
     }, 1000);
     return () => clearInterval(timer);
   }, [selectedCat]);
@@ -45,7 +61,6 @@ export default function ComingUp() {
   // Listen for external category changes
   useEffect(() => {
     const handler = (e) => {
-      // Normalize to number or null
       const raw = e.detail?.productCatId;
       const val = raw === null || raw === undefined || raw === "" ? null : Number(raw);
       setSelectedCat(Number.isNaN(val) ? null : val);
@@ -61,7 +76,13 @@ export default function ComingUp() {
       const res = await fetch(url);
       const json = await res.json();
       setItems(json.items || []);
-      if (json.virtual_time) setCountdown(secondsToNextHour(json.virtual_time));
+      
+      // คำนวณ countdown จากเวลาจริง
+      if (json.current_time) {
+        setCountdown(secondsToNextMinute(json.current_time));
+      } else {
+        setCountdown(60);
+      }
       setSlideIndex(0);
     } catch (e) {
       console.error("Upcoming load failed", e);
@@ -69,15 +90,26 @@ export default function ComingUp() {
   }
 
   // ----------------------------------------------
-  // Compute seconds until next hour boundary
+  // Compute seconds until next minute
   // ----------------------------------------------
-  function secondsToNextHour(vTime) {
-    if (!vTime) return 3600;
-    const vt = new Date(vTime.replace(" ", "T"));
-    if (isNaN(vt.getTime())) return 3600;
-    const next = new Date(vt);
-    next.setHours(vt.getHours() + 1, 0, 0, 0);
-    return Math.max(0, Math.floor((next - vt) / 1000));
+  function secondsToNextMinute(timeStr) {
+    if (!timeStr) return 60;
+    const t = new Date(timeStr.replace(" ", "T"));
+    if (isNaN(t.getTime())) return 60;
+    return Math.max(0, 60 - t.getSeconds());
+  }
+
+  // ----------------------------------------------
+  // Format time for display
+  // ----------------------------------------------
+  function formatTime(timeStr) {
+    if (!timeStr) return "--:--";
+    try {
+      const d = new Date(timeStr.replace(" ", "T"));
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return timeStr.slice(11, 16);
+    }
   }
 
   // ----------------------------------------------
@@ -97,7 +129,7 @@ export default function ComingUp() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // Client-side filter (fallback even if backend didn't filter)
+  // Client-side filter
   const filtered = selectedCat == null
     ? items
     : items.filter(p => Number(p.product_cat_id) === Number(selectedCat));
@@ -114,14 +146,13 @@ export default function ComingUp() {
   // Helpers
   // ----------------------------------------------
   function formatCountdown(sec) {
-    const h = String(Math.floor(sec / 3600)).padStart(2, "0");
-    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+    const m = String(Math.floor(sec / 60)).padStart(2, "0");
     const s = String(sec % 60).padStart(2, "0");
-    return `${h}:${m}:${s}`;
+    return `${m}:${s}`;
   }
 
   function goDetail(item) {
-    navigate(`/auction/${item.real_product_id}`, {
+    navigate(`/auction/${item.product_id}`, {
       state: { productData: item },
     });
   }
@@ -132,7 +163,7 @@ export default function ComingUp() {
   return (
     <div className="px-8 pt-12 max-w-[1400px] mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded">Today’s</div>
+        <div className="px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded">Today's</div>
         <h2 className="text-3xl font-bold text-gray-900">
           Upcoming Products
           {selectedCat != null && (
@@ -173,7 +204,7 @@ export default function ComingUp() {
         {visible.map(prod => {
           const imgSrc = decodeImage(prod.product_img) || PLACEHOLDER;
           return (
-            <div key={prod.real_product_id} onClick={() => goDetail(prod)}
+            <div key={prod.product_id} onClick={() => goDetail(prod)}
               className="min-w-[240px] bg-white rounded-xl shadow hover:shadow-lg transition cursor-pointer overflow-hidden">
               <div className="h-40 overflow-hidden">
                 <img src={imgSrc} alt={prod.product_name}
@@ -181,7 +212,7 @@ export default function ComingUp() {
               </div>
               <div className="p-3">
                 <p className="font-semibold text-sm mb-1 line-clamp-1">{prod.product_name}</p>
-                <p className="text-xs text-gray-500">Starts at: {prod.virtual_start.slice(11, 16)}</p>
+                <p className="text-xs text-gray-500">Starts at: {formatTime(prod.start_time)}</p>
                 <p className="mt-1 text-red-600 text-sm font-bold">฿{Number(prod.start_price).toLocaleString()}</p>
               </div>
             </div>
@@ -212,7 +243,7 @@ export default function ComingUp() {
               {filtered.map(prod => {
                 const imgSrc = decodeImage(prod.product_img) || PLACEHOLDER;
                 return (
-                  <div key={prod.real_product_id}
+                  <div key={prod.product_id}
                        onClick={() => { goDetail(prod); setShowAll(false); }}
                        className="bg-white rounded-lg shadow hover:shadow-lg transition cursor-pointer overflow-hidden">
                     <div className="h-32 overflow-hidden">
@@ -221,7 +252,7 @@ export default function ComingUp() {
                     </div>
                     <div className="p-3">
                       <p className="font-semibold text-xs mb-1 line-clamp-1">{prod.product_name}</p>
-                      <p className="text-[11px] text-gray-500">{prod.virtual_start.slice(11, 16)}</p>
+                      <p className="text-[11px] text-gray-500">{formatTime(prod.start_time)}</p>
                       <p className="mt-1 text-red-600 text-xs font-bold">฿{Number(prod.start_price).toLocaleString()}</p>
                     </div>
                   </div>
