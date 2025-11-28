@@ -1,26 +1,35 @@
 services:
+  # ===== Backend (FastAPI + Docker) =====
   - type: web
     name: auctionhub-backend
-    env: docker
+    runtime: docker
     plan: free
     branch: main
 
-    # Docker build setup (paths are relative to repo root)
+    # Docker build paths (relative to repo root)
     dockerfilePath: backend/Dockerfile
     dockerContext: backend
 
+    # Health check endpoint
+    healthCheckPath: /
+
     envVars:
-      # === COPY THESE FROM docker-compose.yml OR YOUR .env ===
+      # ⚠️ ตั้งค่าใน Render Dashboard แทน (ไม่ควร commit secrets)
       - key: SUPABASE_URL
-        value: https://gexoszezmyjkoinbicgv.supabase.co
+        sync: false
       - key: SUPABASE_KEY
-        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdleG9zemV6bXlqa29pbmJpY2d2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDQ5Mzk4OSwiZXhwIjoyMDc2MDY5OTg5fQ.2XQRYOcYL3Xml5ThOXMRgrnd9oLarCig90IxJZMpc-k
+        sync: false
+      # Optional: frontend URL for CORS
+      - key: FRONTEND_URL
+        fromService:
+          name: auctionhub-frontend
+          type: web
+          property: url
 
-      # add any other backend env vars you use
-
+  # ===== Frontend (React + Vite + Docker) =====
   - type: web
     name: auctionhub-frontend
-    env: docker
+    runtime: docker
     plan: free
     branch: main
 
@@ -28,6 +37,14 @@ services:
     dockerContext: frontend
 
     envVars:
-      # This should point to your backend Render URL after first deploy
-      - key: VITE_API_BASE_URL   # or whatever your frontend uses
-        value: https://auctionhub-backend-u4kg.onrender.com
+      # Backend API URL (auto-link from backend service)
+      - key: VITE_API_BASE_URL
+        fromService:
+          name: auctionhub-backend
+          type: web
+          property: url
+      # Supabase (frontend ใช้ anon key เท่านั้น)
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
