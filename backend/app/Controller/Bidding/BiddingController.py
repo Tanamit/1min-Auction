@@ -21,8 +21,7 @@ def get_virtual_now() -> datetime:
 class BidRequest(BaseModel):
     product_id: str
     bid_amount: condecimal(gt=0)
-
-
+    user_id: str
 # ======================================================
 # GET PRODUCT DETAILS
 # ======================================================
@@ -41,11 +40,15 @@ def get_product(product_id: str):
 # ======================================================
 @router.post("/create")
 def create_bid(payload: BidRequest):
+    # 1. รับค่าจากที่ Frontend ส่งมา
     product_id = payload.product_id
+    bidder_id = payload.user_id  # ✅ ใช้ ID จริงๆ ของคนที่ Login
 
-    # Temporary UUID since your user system is not ready
-    bidder_id = "ce729402-fcac-4c62-868d-3d04800c5db7"
+    # เช็คความปลอดภัยนิดนึง (กันเหนียว)
+    if not bidder_id:
+        raise HTTPException(status_code=400, detail="User ID is missing")
 
+    # 2. บันทึกลง Database
     result = BiddingModel.insert_bid(
         product_id=product_id,
         bidder_id=bidder_id,
