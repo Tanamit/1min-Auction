@@ -39,6 +39,7 @@ app.add_middleware(
         "http://localhost:5173",         
         "https://auctionhub-frontend.onrender.com",
         "https://auctionhub-frontend-k03w.onrender.com",
+        "https://auctionhub-frontend-i8g9.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
