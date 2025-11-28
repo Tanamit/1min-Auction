@@ -22,9 +22,51 @@ def _hex_to_base64(hex_str: str) -> str | None:
         elif clean.startswith("0x"):
             clean = clean[2:]
         
-        # แปลง hex เป็น bytes แล้วเป็น base64
+        # แปลง hex เป็น bytes
         img_bytes = bytes.fromhex(clean)
-        return base64.b64encode(img_bytes).decode("utf-8")
+        
+        # เช็คว่าเป็นรูปภาพจริงหรือไม่ (JPEG, PNG, GIF, WEBP)
+        is_jpeg = img_bytes[:3] == b'\xff\xd8\xff'
+        is_png = img_bytes[:8] == b'\x89PNG\r\n\x1a\n'
+        is_gif = img_bytes[:3] == b'GIF'
+        is_webp = img_bytes[:4] == b'RIFF' and img_bytes[8:12] == b'WEBP'
+        
+        if is_jpeg or is_png or is_gif or is_webp:
+            # เป็นรูปภาพจริง - แปลงเป็น base64
+            return base64.b64encode(img_bytes).decode("utf-8")
+        
+        # ไม่ใช่รูปภาพ - อาจเป็น base64 string ที่ถูกเก็บเป็น bytes (double encoded)
+        # ลอง decode เป็น string แล้วเช็คว่าเป็น base64 ของรูปหรือไม่
+        try:
+            maybe_b64 = img_bytes.decode("utf-8")
+            
+            # เช็คว่าเป็น base64 ของรูปจริงไหม
+            if maybe_b64.startswith("/9j/"):  # JPEG
+                return maybe_b64
+            if maybe_b64.startswith("iVBOR"):  # PNG
+                return maybe_b64
+            if maybe_b64.startswith("R0lG"):   # GIF
+                return maybe_b64
+            if maybe_b64.startswith("UklG"):   # WEBP
+                return maybe_b64
+            
+            # ลอง decode base64 อีกรอบ (triple encoded case)
+            decoded = base64.b64decode(maybe_b64)
+            is_jpeg2 = decoded[:3] == b'\xff\xd8\xff'
+            is_png2 = decoded[:8] == b'\x89PNG\r\n\x1a\n'
+            is_gif2 = decoded[:3] == b'GIF'
+            is_webp2 = decoded[:4] == b'RIFF' and decoded[8:12] == b'WEBP'
+            
+            if is_jpeg2 or is_png2 or is_gif2 or is_webp2:
+                # เป็น double encoded - return base64 ที่ถูกต้อง
+                return base64.b64encode(decoded).decode("utf-8")
+            
+        except Exception:
+            pass
+        
+        # ไม่สามารถแปลงได้ - return None
+        return None
+        
     except Exception as e:
         print(f"Error converting hex to base64: {e}")
         return None
