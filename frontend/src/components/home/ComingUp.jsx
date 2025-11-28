@@ -152,7 +152,7 @@ export default function ComingUp() {
       const now = new Date();
       const diff = start - now;
       
-      if (diff <= 0) return "กำลังประมูล";
+      if (diff <= 0) return "Upcoming";
       
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
@@ -272,7 +272,7 @@ export default function ComingUp() {
               </div>
               <div className="p-3">
                 <p className="font-semibold text-sm mb-1 line-clamp-1">{prod.product_name}</p>
-                <p className="text-xs text-gray-500">เริ่มประมูล: {formatTime(prod.start_time)} น.</p>
+                <p className="text-xs text-gray-500">Start at: {formatTime(prod.start_time)} น.</p>
                 <p className="mt-1 text-red-600 text-sm font-bold">฿{Number(prod.start_price).toLocaleString()}</p>
               </div>
             </div>
