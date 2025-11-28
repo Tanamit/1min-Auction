@@ -34,21 +34,42 @@ const base64MimeHint = (b64) => {
     return "image/jpeg";
 };
 
+/** ตรวจสอบว่าเป็น base64 ของรูปจริงไหม */
+const isValidImageBase64 = (b64) => {
+    if (!b64 || typeof b64 !== "string") return false;
+    // JPEG, PNG, GIF, WEBP prefixes
+    const validPrefixes = ["/9j/", "iVBOR", "R0lG", "UklG"];
+    return validPrefixes.some(p => b64.startsWith(p));
+};
+
 /** normalize product_img into a src string usable by <img> */
 const toThumbSrc = (raw, trackUrl) => {
     if (!raw || typeof raw !== "string") return null;
 
+    // already data URL
     if (raw.startsWith("data:")) return raw;
 
-    // เช็ค hex ทุกแบบ
+    // hex from PostgREST bytea (e.g., "\\x89504e47...")
     if (/^(\\\\x|\\x|0x)/i.test(raw)) {
-        const u8 = hexToU8(raw);
-        const mime = mimeFromBytes(u8);
-        const url = URL.createObjectURL(new Blob([u8], { type: mime }));
-        trackUrl && trackUrl(url);
-        return url;
+        try {
+            const u8 = hexToU8(raw);
+            const mime = mimeFromBytes(u8);
+            const url = URL.createObjectURL(new Blob([u8], { type: mime }));
+            trackUrl && trackUrl(url);
+            return url;
+        } catch (e) {
+            console.error("Error converting hex to image:", e);
+            return null;
+        }
     }
 
+    // ตรวจสอบว่าเป็น base64 ของรูปจริงไหม
+    if (!isValidImageBase64(raw)) {
+        console.warn("Invalid image base64 data detected");
+        return null;
+    }
+
+    // assume plain base64
     const mime = base64MimeHint(raw);
     return `data:${mime};base64,${raw}`;
 };
@@ -76,6 +97,15 @@ const StatusBadge = ({ status_id }) => {
     const s = map[status_id] ?? map[1];
     return <span className={`px-3 py-1 rounded-full text-xs font-medium ${s.bg} ${s.text}`}>{s.label}</span>;
 };
+
+// Placeholder image component
+const PlaceholderImage = ({ name }) => (
+    <div className="w-12 h-12 rounded-md border border-gray-200 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+        <span className="text-gray-400 text-xs font-medium">
+            {name ? name.charAt(0).toUpperCase() : "?"}
+        </span>
+    </div>
+);
 
 export default function ProductLists() {
     const { user } = useAuth();
@@ -235,13 +265,20 @@ export default function ProductLists() {
                                                         src={thumb}
                                                         alt={p.product_name}
                                                         className="w-12 h-12 object-cover rounded-md border border-gray-200"
-                                                        onError={(e) => { e.currentTarget.style.opacity = 0; }}
+                                                        onError={(e) => {
+                                                            // แทนที่ด้วย placeholder เมื่อโหลดรูปไม่ได้
+                                                            e.currentTarget.onerror = null;
+                                                            e.currentTarget.style.display = 'none';
+                                                            e.currentTarget.nextSibling?.classList.remove('hidden');
+                                                        }}
                                                     />
-                                                ) : (
-                                                    <div className="w-12 h-12 rounded-md border border-gray-200 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">
-                                                        No Img
-                                                    </div>
-                                                )}
+                                                ) : null}
+                                                {/* Placeholder - แสดงเมื่อไม่มีรูปหรือรูปโหลดไม่ได้ */}
+                                                <div className={`w-12 h-12 rounded-md border border-gray-200 bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center ${thumb ? 'hidden' : ''}`}>
+                                                    <span className="text-red-400 text-lg font-bold">
+                                                        {p.product_name ? p.product_name.charAt(0).toUpperCase() : "?"}
+                                                    </span>
+                                                </div>
                                                 <div>
                                                     <p className="font-medium text-gray-900">{p.product_name}</p>
                                                     <p className="text-xs text-gray-500">ID: {p.product_id}</p>
