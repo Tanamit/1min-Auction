@@ -217,7 +217,7 @@ export default function ProductStatusLists() {
           Product Status List
         </h2>
         <p className="text-sm text-gray-500">
-          Showing product status from Supabase (role: Admin).
+          Showing product status.
         </p>
       </header>
 
