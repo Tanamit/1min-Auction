@@ -101,12 +101,13 @@ def admin_product_status_list():
         res = (
             client.table("product")
             .select(
-                "product_id, product_name, start_price, status_id, start_time, end_time"
+                "product_id, product_name, start_price, status_id, start_time, end_time, product_img"
             )
             .order("start_time", desc=True)
             .limit(200)
             .execute()
         )
+
 
         if getattr(res, "error", None):
             raise Exception(res.error)
@@ -121,6 +122,7 @@ def admin_product_status_list():
                     "status_id": row.get("status_id"),
                     "start_time": row.get("start_time"),
                     "end_time": row.get("end_time"),
+                    "product_img": row.get("product_img"),
                 }
             )
 
