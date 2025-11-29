@@ -158,9 +158,9 @@ export default function ComingUp() {
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const minutes = Math.floor((diff / (1000 * 60)) % 60);
       
-      if (days > 0) return `อีก ${days} วัน ${hours} ชม.`;
-      if (hours > 0) return `อีก ${hours} ชม. ${minutes} นาที`;
-      return `อีก ${minutes} นาที`;
+      if (days > 0) return `In ${days} days ${hours} hrs`;
+      if (hours > 0) return `In ${hours} hrs ${minutes} mins`;
+      return `In ${minutes} mins`;
     } catch {
       return null;
     }
