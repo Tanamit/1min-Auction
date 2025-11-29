@@ -162,12 +162,12 @@ export default function ComingUp() {
       if (hours > 0) return `In ${hours} hrs ${minutes} mins`;
       return `In ${minutes} mins`;
     } catch {
-      return null;
+      return null; 
     }
   }
 
   // ----------------------------------------------
-  // Responsive columns
+  // Responsive columnss
   // ----------------------------------------------
   useEffect(() => {
     const update = () => {
