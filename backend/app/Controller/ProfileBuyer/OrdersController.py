@@ -26,6 +26,7 @@ def _status_map(status_id: int):
 # -----------------------------------------------------
 def _to_dto(row: dict) -> OrderOut:
     pid = str(row["product_id"])
+    thumb = row.get("thumbnailUrl") or row.get("product_img")
 
     return OrderOut(
         id=pid,
@@ -35,8 +36,8 @@ def _to_dto(row: dict) -> OrderOut:
         finalPrice=row.get("final_price"),
         purchasedAt=row.get("paid_at"),
         cancelledAt=row.get("cancelled_at"),
-        thumbnailUrl=None,
-        status=_status_map(row.get("status_id"))
+        thumbnailUrl=thumb,
+        status=_status_map(row.get("status_id")),
     )
 
 
@@ -53,10 +54,14 @@ def list_orders(
     # Load base products
     product_resp = (
         supabase.table("product")
-        .select("product_id, product_name, start_price, end_time, winner_id, status_id")
+        .select(
+            "product_id, product_name, start_price, end_time, winner_id, status_id, product_img"
+        )
         .eq("winner_id", x_user_id)
         .execute()
     )
+
+
     rows = product_resp.data or []
 
     # filter by refund state
@@ -141,11 +146,15 @@ def receive_order(product_id: UUID, x_user_id: str = Header(..., alias="X-User-I
     # verify owner
     base = (
         supabase.table("product")
-        .select("product_id, product_name, start_price, end_time, winner_id, status_id")
+        .select(
+            "product_id, product_name, start_price, end_time, winner_id, status_id, product_img"
+        )
         .eq("product_id", pid)
         .single()
         .execute()
     )
+
+
     product = base.data
     if not product:
         raise HTTPException(404, "Not found")
@@ -185,11 +194,15 @@ def refund_order(product_id: UUID, x_user_id: str = Header(..., alias="X-User-Id
 
     base = (
         supabase.table("product")
-        .select("product_id, product_name, start_price, end_time, winner_id, status_id")
+        .select(
+            "product_id, product_name, start_price, end_time, winner_id, status_id, product_img"
+        )
         .eq("product_id", pid)
         .single()
         .execute()
     )
+
+
     product = base.data
     if not product:
         raise HTTPException(404, "Not found")
