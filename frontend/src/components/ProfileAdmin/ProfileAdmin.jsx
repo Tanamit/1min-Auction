@@ -18,10 +18,10 @@ export default function ProfileAdmin() {
                     return <MyProfile />;
                 case 'myCredential':
                     return <MyCredential />;
-                case 'productValidation':
-                    return <ProductValidation />;
-                case 'productValidationLists':
-                    return <ProductValidationList />;
+                // case 'productValidation':
+                //     return <ProductValidation />;
+                // case 'productValidationLists':
+                //     return <ProductValidationList />;
                 case 'productStatusLists':
                     return <ProductStatusLists />;
                 case 'roleManagement':
@@ -75,30 +75,6 @@ export default function ProfileAdmin() {
                             <div>
                                 <h3 className="font-semibold text-lg mb-3">Product management</h3>
                                 <ul className="space-y-2">
-                                    <li>
-                                        <button
-                                            onClick={() => setActiveComponent('productValidation')}
-                                            className={`w-full text-left px-4 py-2 rounded transition-colors ${
-                                                activeComponent === 'productValidation'
-                                                    ? 'text-red-500 bg-red-50'
-                                                    : 'text-gray-600 hover:text-red-500'
-                                            }`}
-                                        >
-                                            To be Validate
-                                        </button>
-                                    </li>
-                                    <li>
-                                        <button
-                                            onClick={() => setActiveComponent('productValidationLists')}
-                                            className={`w-full text-left px-4 py-2 rounded transition-colors ${
-                                                activeComponent === 'productValidationLists'
-                                                    ? 'text-red-500 bg-red-50'
-                                                    : 'text-gray-600 hover:text-red-500'
-                                            }`}
-                                        >
-                                            Validated list
-                                        </button>
-                                    </li>
                                     <li>
                                         <button
                                             onClick={() => setActiveComponent('productStatusLists')}
