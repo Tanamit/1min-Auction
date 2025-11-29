@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getProductStatusList } from "../../services/ProfileAdmin/productAdminService";
+import { getProductStatusList } from "../../services/ProfileAdmin/userService";
 
 /* ---------- money + date ---------- */
 
