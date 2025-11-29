@@ -1,6 +1,6 @@
 // frontend/src/components/ProfileAdmin/ProductStatusLists.jsx
 import { useEffect, useState } from "react";
-import { getProductStatusList } from "../../services/ProfileAdmin/userService";
+import { getProductStatusList } from "../../services/ProfileAdmin/ProfileAdminService";
 
 const money = (n) => `฿${Number(n ?? 0).toLocaleString()}`;
 

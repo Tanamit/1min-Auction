@@ -7,6 +7,7 @@ from app.Controller.loginAccount.LoginAccountController import router as login_r
 from app.Controller.Home import WinnerHistoryController,CategoriesController,ExploreProductController, ComingUpController
 from app.Service.ProfileAdmin import ProfileAdminService   # or user_service if renamed
 from app.Controller.CreateAccount.CreateAccountController import router as create_account_router
+from app.Service.ProfileAdmin.ProfileAdminService import router as profile_admin_router
 
 # Seller side
 from app.Controller.ProfileSeller.MycredentialController import router as mycred_router
@@ -69,6 +70,7 @@ app.include_router(ExploreProductController.router)
 app.include_router(ComingUpController.router)
 app.include_router(login_router)  # ✅ เพิ่ม login endpoint
 app.include_router(create_account_router)
+app.include_router(profile_admin_router)
 
 # Seller APIs
 app.include_router(mycred_router)
