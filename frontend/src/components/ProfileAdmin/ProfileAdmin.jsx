@@ -18,10 +18,6 @@ export default function ProfileAdmin() {
                     return <MyProfile />;
                 case 'myCredential':
                     return <MyCredential />;
-                // case 'productValidation':
-                //     return <ProductValidation />;
-                // case 'productValidationLists':
-                //     return <ProductValidationList />;
                 case 'productStatusLists':
                     return <ProductStatusLists />;
                 case 'roleManagement':
