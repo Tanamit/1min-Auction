@@ -11,3 +11,8 @@ export async function updateUserRole(userId, newRole) {
 export async function deleteUser(userId) {
     return apiRequest(`/admin/users/${userId}`, "DELETE");
 }
+
+export async function getProductStatusList() {
+  // Calls FastAPI: /admin/products/status-list
+  return apiRequest("/admin/products/status-list");
+}

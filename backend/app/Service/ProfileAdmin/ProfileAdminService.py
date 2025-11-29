@@ -91,4 +91,41 @@ def delete_user(user_id: str):
         print("ERROR in delete_user:", e)
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/products/status-list")
+def admin_product_status_list():
+    """
+    Return a list of products with their status for the Admin screen.
+    """
+    try:
+        client = get_supabase_client()
+        res = (
+            client.table("product")
+            .select(
+                "product_id, product_name, start_price, status_id, start_time, end_time"
+            )
+            .order("start_time", desc=True)
+            .limit(200)
+            .execute()
+        )
 
+        if getattr(res, "error", None):
+            raise Exception(res.error)
+
+        items = []
+        for row in res.data or []:
+            items.append(
+                {
+                    "id": row.get("product_id"),
+                    "name": row.get("product_name"),
+                    "price": row.get("start_price"),
+                    "status_id": row.get("status_id"),
+                    "start_time": row.get("start_time"),
+                    "end_time": row.get("end_time"),
+                }
+            )
+
+        return {"items": items}
+
+    except Exception as e:
+        print("ERROR in admin_product_status_list:", e)
+        raise HTTPException(status_code=500, detail=str(e))
