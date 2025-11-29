@@ -26,8 +26,6 @@ def _status_map(status_id: int):
 # -----------------------------------------------------
 def _to_dto(row: dict) -> OrderOut:
     pid = str(row["product_id"])
-    # try thumbnailUrl field first (in case you add it later),
-    # otherwise use product_img directly from Supabase
     thumb = row.get("thumbnailUrl") or row.get("product_img")
 
     return OrderOut(
@@ -41,7 +39,6 @@ def _to_dto(row: dict) -> OrderOut:
         thumbnailUrl=thumb,
         status=_status_map(row.get("status_id")),
     )
-
 
 
 # -----------------------------------------------------
@@ -63,6 +60,7 @@ def list_orders(
         .eq("winner_id", x_user_id)
         .execute()
     )
+
 
     rows = product_resp.data or []
 
@@ -156,6 +154,7 @@ def receive_order(product_id: UUID, x_user_id: str = Header(..., alias="X-User-I
         .execute()
     )
 
+
     product = base.data
     if not product:
         raise HTTPException(404, "Not found")
@@ -202,6 +201,7 @@ def refund_order(product_id: UUID, x_user_id: str = Header(..., alias="X-User-Id
         .single()
         .execute()
     )
+
 
     product = base.data
     if not product:
